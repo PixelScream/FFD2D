@@ -3,10 +3,9 @@ using System.Collections.Generic;
 using UnityEngine;
 
 /*
- * from https://www.youtube.com/watch?v=o9RK6O2kOKo
+ * modified from https://www.youtube.com/watch?v=o9RK6O2kOKo
  */
 public class UniqueMesh : MonoBehaviour {
-	[HideInInspector] int ownerID;
 
 	MeshFilter _mf;
 	MeshFilter mf {
@@ -16,21 +15,53 @@ public class UniqueMesh : MonoBehaviour {
 			return _mf;
 		}
 	}
-	Mesh _mesh;
+	[SerializeField] Mesh _origonal;
+	public Mesh Origonal { get { return _origonal; } }
+
+	[SerializeField] Mesh _mesh;
 	public Mesh mesh { 
 		get {
-			bool isOwner = ownerID == gameObject.GetInstanceID();
-			if(mf.sharedMesh == null || !isOwner)
+			if(mf.sharedMesh == null || _mesh == null)
 			{
-				mf.sharedMesh = _mesh = mf.sharedMesh == 
-					null ? new Mesh() : mf.mesh;
+				if(mf.sharedMesh != null)
+				{
+					_origonal = mf.sharedMesh;
+					UpdateFromOrigonal();
+				}
+				else
+				{
+					_mesh = new Mesh();
+					SetName("Mesh");
+				}
+				mf.sharedMesh = _mesh;
 
-				ownerID = gameObject.GetInstanceID();
-				_mesh.name = 
-					(_mesh.name == "" ? "Mesh" : _mesh.name) +
-					" [" + ownerID + "]";
+
 			}
 			return _mesh;
 		}
+	}
+
+	public virtual void UpdateFromOrigonal()
+	{
+		if(_origonal != null)
+		{
+			_mesh = Instantiate(_origonal);
+			SetName(_origonal.name);
+		}
+	}
+
+	void SetName(string n)
+	{
+		_mesh.name = n +  " [" + gameObject.GetInstanceID() + "]";
+	}
+	public virtual void Reset()
+	{
+		if(_origonal != null)
+			mf.sharedMesh = _origonal;
+	}
+	public virtual void Reapply()
+	{
+		if(_mesh != null)
+			mf.sharedMesh = _mesh;
 	}
 }

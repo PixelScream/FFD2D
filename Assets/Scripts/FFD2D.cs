@@ -3,25 +3,20 @@ using System.Collections.Generic;
 using UnityEngine;
 using System;
 
+[ExecuteInEditMode]
 public class FFD2D : MonoBehaviour {
 
 	public Vector2 offset;
 	Bounds bounds = new Bounds();
-	Vector3[][] cachedPoints =  
-		new Vector3[][]{ new Vector3[cellsInt], new Vector3[cellsInt], new Vector3[cellsInt]};
-	const float cells = 3;
-	const int cellsInt = 3;
-	const float cellsMO = cells - 1;
-	const int cellsIntMO = cellsInt - 1;
+	public Vector3[][] cachedPoints;
+	public int cells = 3;
 
 	public bool m_activeUpdate = false;
 
 	// Use this for initialization
 	void Start () {
-		
+		Init();
 		Set();
-		
-		_cachedTransform = new CachedTransform();
 	}
 
 	struct CachedTransform
@@ -53,8 +48,22 @@ public class FFD2D : MonoBehaviour {
 		}
 	}
 
-	void CachePoints()
+	void Init()
 	{
+		if(cachedPoints != null && cachedPoints.Length == cells)
+			return;
+
+		cachedPoints = new Vector3[cells][];
+		for (int i = 0; i < cells; i++)
+		{
+			cachedPoints[i] = new Vector3[cells];
+		}
+		_cachedTransform = new CachedTransform();
+	}
+
+	public void CachePoints()
+	{
+		Init();
 		bounds.size = transform.localScale * 2;
 
 		cachedPoints[1][1] = offset * transform.localScale;
@@ -115,17 +124,11 @@ public class FFD2D : MonoBehaviour {
 	int PointToGrid(float v, out float weighting)
 	{
 		v = v * 0.5f + 0.5f;
-		v = v * cellsMO;
+		v = v * (cells - 1);
 		weighting = v % 1;
 		return (int)v;
 	}
 
-	private void OnValidate() {
-		if(Application.isPlaying && m_activeUpdate)
-		{
-			Set();
-		}
-	}
 
 	Vector3 BilinearFilter(int x, int y, float u, float v)
 	{

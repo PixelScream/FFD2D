@@ -13,7 +13,7 @@ public class DeformableMesh : UniqueMesh
 		{
 			if(_origonalVerts == null || _origonalVerts.Length != mesh.vertexCount)
 			{
-				_origonalVerts = mesh.vertices;
+				_origonalVerts = (Vector3[]) Origonal.vertices.Clone();
 
 			}
 			return _origonalVerts;

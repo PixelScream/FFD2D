@@ -11,6 +11,7 @@ public class FFD2DEditor : Editor
 
     private void OnEnable() {
         m_target = target as FFD2D;
+        SetEditPoint();
     }
     private void OnDisable() {
         _editing = false;
@@ -33,6 +34,7 @@ public class FFD2DEditor : Editor
         {
             cachedTool = Tools.current;
             Tools.current = Tool.None;
+            SetEditPoint();
         }
         else
         {
@@ -64,14 +66,15 @@ public class FFD2DEditor : Editor
         //DrawLineHor(0.5f);
         //DrawLineVer(0.5f);
 
-
+        Color gridColor = new Color(1,1,1, 0.5f);
 
         for (int x = 0; x < m_target.cachedPoints.Length; x++)
         {
-            Handles.color = new Color(1,1,1, 0.5f);
+            Handles.color = gridColor;
             DrawLineHor(x);
             for (int y = 0; y < m_target.cachedPoints[0].Length; y++)
             {
+                Handles.color = gridColor;
                 DrawLineVer(y);
                 Handles.color = Color.green;
                 if(x != m_target.cachedPoints.Length - 1)
@@ -84,9 +87,8 @@ public class FFD2DEditor : Editor
 
     }
 
-    void OnSceneGUI()
+    void CachePoints()
     {
-        corners.UpdateCorners(m_target);
         m_target.CachePoints();
         cachedPointsWS = new Vector3[m_target.cachedPoints.Length][];
         for (int x = 0; x < m_target.cachedPoints.Length; x++)
@@ -104,10 +106,34 @@ public class FFD2DEditor : Editor
                     );
             }
         }
+    }
+
+    void CheckTool()
+    {
+        if(_editing && Tools.current != Tool.None)
+        {
+            _editing = false;
+        }
+    }
+
+     void OnSceneGUI()
+     {
+        CheckTool();
+        corners.UpdateCorners(m_target);
+        CachePoints();
         Edit();
         DrawGrid();
 
+     }
+
+    void SetEditPoint()
+    {
+        CachePoints();
+        editPoint = cachedEditPoint =  cachedPointsWS[1][1];
     }
+    
+
+    static Vector3 editPoint, cachedEditPoint;
 
     void Edit()
     {
@@ -115,13 +141,17 @@ public class FFD2DEditor : Editor
             return;
 
         EditorGUI.BeginChangeCheck();
-        cachedPointsWS[1][1] = 
-            Handles.PositionHandle(cachedPointsWS[1][1], m_target.transform.rotation);
+        editPoint = 
+            Handles.PositionHandle(editPoint, m_target.transform.rotation);
         if(EditorGUI.EndChangeCheck())
         {
-            Vector2 offset = m_target.transform.InverseTransformPoint(cachedPointsWS[1][1]);
-            serializedObject.FindProperty("offset").vector2Value = offset;
+            Vector2 offset = m_target.transform.InverseTransformVector((editPoint - cachedEditPoint) / (m_target.cells - 2));
+
+
+            serializedObject.FindProperty("offset").vector2Value += offset;
             serializedObject.ApplyModifiedProperties();
+
+            cachedEditPoint = editPoint;
 
             m_target.Set();
         }
@@ -135,7 +165,7 @@ public class FFD2DEditor : Editor
 
     void DrawLineHor(int y)
     {
-        DrawLineHor(y / (m_target.cells - 1.0f));
+        DrawLineHor(y / (float)m_target.cellsM1);
     }
     void DrawLineHor(float y)
     {
@@ -146,7 +176,7 @@ public class FFD2DEditor : Editor
     }
     void DrawLineVer(int x)
     {
-        DrawLineVer(x / (m_target.cells - 1.0f));
+        DrawLineVer(x / (float)m_target.cellsM1);
     }
     void DrawLineVer(float x)
     {

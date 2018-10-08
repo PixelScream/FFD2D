@@ -6,6 +6,7 @@ using UnityEngine;
  * modified from https://www.youtube.com/watch?v=o9RK6O2kOKo
  */
 public class UniqueMesh : MonoBehaviour {
+	[HideInInspector] int ownerID;
 
 	MeshFilter _mf;
 	MeshFilter mf {
@@ -21,9 +22,15 @@ public class UniqueMesh : MonoBehaviour {
 	[SerializeField] Mesh _mesh;
 	public Mesh mesh { 
 		get {
-			if(mf.sharedMesh == null || _mesh == null)
+			bool isOwner = ownerID == gameObject.GetInstanceID();
+			if(mf.sharedMesh == null || _mesh == null || !isOwner)
 			{
-				if(mf.sharedMesh != null)
+				ownerID = gameObject.GetInstanceID();
+				if(_origonal != null)
+				{
+					UpdateFromOrigonal();
+				}
+				else if(mf.sharedMesh != null)
 				{
 					_origonal = mf.sharedMesh;
 					UpdateFromOrigonal();
@@ -52,7 +59,7 @@ public class UniqueMesh : MonoBehaviour {
 
 	void SetName(string n)
 	{
-		_mesh.name = n +  " [" + gameObject.GetInstanceID() + "]";
+		_mesh.name = n +  " [" + ownerID + "]";
 	}
 	public virtual void Reset()
 	{

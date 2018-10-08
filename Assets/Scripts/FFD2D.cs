@@ -3,13 +3,14 @@ using System.Collections.Generic;
 using UnityEngine;
 using System;
 
-[ExecuteInEditMode]
+//[ExecuteInEditMode]
 public class FFD2D : MonoBehaviour {
 
 	public Vector2 offset;
 	Bounds bounds = new Bounds();
 	public Vector3[][] cachedPoints;
 	public int cells = 3;
+	public int cellsM1 { get{ return cells - 1; } }
 
 	public bool m_activeUpdate = false;
 
@@ -66,7 +67,7 @@ public class FFD2D : MonoBehaviour {
 		Init();
 		bounds.size = transform.localScale * 2;
 
-		cachedPoints[1][1] = offset * transform.localScale;
+		cachedPoints[1][1] = offset;// * transform.localScale;
 		
 	}
 
@@ -108,23 +109,26 @@ public class FFD2D : MonoBehaviour {
 				// find vert's grid cell
 				float weightingX, weightingY;
 				//Debug.Log(localV.x);
-				int x = PointToGrid(localV.x, out weightingX);
-				int y = PointToGrid(localV.y, out weightingY);
+				int x = PointToGrid(localV.x, out weightingX, cellsM1);
+				int y = PointToGrid(localV.y, out weightingY, cellsM1);
 				//Debug.Log("x: " + x + ", y: " + y);
 				// deform
-				localV += BilinearFilter(x, y, weightingX, weightingY);
+				if(x > -1 && x < cellsM1 && y > -1 && y < cellsM1)
+				{
+					localV += BilinearFilter(x, y, weightingX, weightingY);
+					verts[v] = WorldPoint(localV);
 
-				verts[v] = WorldPoint(localV);
+				}
 			}
 		}
 		deformable.SetVertsWS(verts);
 
 	}
 
-	int PointToGrid(float v, out float weighting)
+	int PointToGrid(float v, out float weighting, float grid)
 	{
 		v = v * 0.5f + 0.5f;
-		v = v * (cells - 1);
+		v = v * grid;
 		weighting = v % 1;
 		return (int)v;
 	}

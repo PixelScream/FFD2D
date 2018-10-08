@@ -23,6 +23,9 @@ public class DeformableMesh : UniqueMesh
 
 	public Vector3[] GetVertsWS()
 	{
+		if(mesh == null)
+			return new Vector3[0];
+
 		if(_debug)
 		{
 			return new Vector3[]{transform.position};
@@ -52,7 +55,7 @@ public class DeformableMesh : UniqueMesh
 
 	Vector3 deformedPoint;
 	private void OnDrawGizmos() {
-		if(!Application.isPlaying || !_debug)
+		if(!_debug)
 			return;
 
 		Gizmos.color = Color.red;	

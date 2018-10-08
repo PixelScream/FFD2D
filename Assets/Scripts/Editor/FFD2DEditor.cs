@@ -9,12 +9,68 @@ public class FFD2DEditor : Editor
     FFD2D m_target;
     static bool _editing;
 
+    static int _indexX = -1, _indexY = -1;
+    static bool[][] _selected;
+
     private void OnEnable() {
         m_target = target as FFD2D;
+
+        CheckOffsetsSize();
+        CreateSelectionArray();
         SetEditPoint();
+
+        
+    }
+
+    void ResetOffsets()
+    {
+
+        Undo.RecordObject(m_target, "creating offsets for " + m_target.name);
+        //serializedObject.FindProperty("offsets").arraySize = cells * cells;
+        m_target.offsets = new Vector3[cells * cells];
+        serializedObject.Update();
+        SceneView.RepaintAll();
+        SetFFD();
+    }
+    void CreateSelectionArray()
+    {
+
+        _selected = new bool[cells][];
+        for (int i = 0; i < cells; i++)
+        {
+
+            _selected[i] = new bool[cells];
+        }
+    }
+
+    void RandomiseOffsets()
+    {
+
+        Undo.RecordObject(m_target, "Randomizing offsets " + m_target.name);
+
+        for (int x = 0; x < cells; x++)
+        {
+            for (int y = 0; y < cells; y++)
+            {
+                Vector3 r = Random.insideUnitCircle * 0.1f;
+                m_target.offsets[m_target.CoordToIndex(x,y)] += r;
+            }
+        }
+        serializedObject.Update();
+        SceneView.RepaintAll();
+        SetFFD();
+    }
+
+    void CheckOffsetsSize()
+    {
+        if(!m_target.offsets.IsCorrectLength(cells * cells))
+        {
+            ResetOffsets();
+        }
     }
     private void OnDisable() {
         _editing = false;
+        _indexX = _indexY = -1;
     }
     public override void OnInspectorGUI()
     {
@@ -22,6 +78,12 @@ public class FFD2DEditor : Editor
             ToggleEditMode();
 
         base.OnInspectorGUI();
+
+        if(GUILayout.Button("Randomize"))
+            RandomiseOffsets();
+
+        if(GUILayout.Button("Reset"))
+            ResetOffsets();
         
     }
 
@@ -66,43 +128,46 @@ public class FFD2DEditor : Editor
         //DrawLineHor(0.5f);
         //DrawLineVer(0.5f);
 
-        Color gridColor = new Color(1,1,1, 0.5f);
+        Color gridColor = new Color(1,1,1, 0.25f);
+        Color latticeColor = new Color(0.5f,1,0.5f,0.5f);
 
-        for (int x = 0; x < m_target.cachedPoints.Length; x++)
+        for (int x = 0; x < cells; x++)
         {
             Handles.color = gridColor;
             DrawLineHor(x);
-            for (int y = 0; y < m_target.cachedPoints[0].Length; y++)
+            DrawLineVer(x);
+            for (int y = 0; y < cells; y++)
             {
                 Handles.color = gridColor;
-                DrawLineVer(y);
-                Handles.color = Color.green;
-                if(x != m_target.cachedPoints.Length - 1)
-                    Handles.DrawLine(cachedPointsWS[x][y], cachedPointsWS[x+1][y]);
+                
+                Handles.color = latticeColor;
+                if(x != m_target.cellsM1)
+                    Handles.DrawDottedLine(cachedPointsWS[x][y], cachedPointsWS[x+1][y], 7);
 
-                if(y != m_target.cachedPoints[0].Length - 1)
-                    Handles.DrawLine(cachedPointsWS[x][y], cachedPointsWS[x][y+1]);
+                if(y !=  m_target.cellsM1)
+                    Handles.DrawDottedLine(cachedPointsWS[x][y], cachedPointsWS[x][y+1], 7);
             }
         }
 
     }
+    int cells { get { return m_target.cells; } }
 
     void CachePoints()
     {
         m_target.CachePoints();
-        cachedPointsWS = new Vector3[m_target.cachedPoints.Length][];
-        for (int x = 0; x < m_target.cachedPoints.Length; x++)
+        cachedPointsWS = new Vector3[cells][];
+        for (int x = 0; x < cells; x++)
         {
-            cachedPointsWS[x] = new Vector3[m_target.cachedPoints[x].Length];
-            for (int y = 0; y < cachedPointsWS[0].Length; y++)
+            cachedPointsWS[x] = new Vector3[cells];
+            for (int y = 0; y < cells; y++)
             {
                 // TODO: have I buggered up the x and y order?
                 Vector3 gridPos = new Vector3( 
-                    GridToScalar(x, m_target.cells), GridToScalar(y, m_target.cells)
+                    GridToScalar(x, cells), GridToScalar(y, cells)
                 );
                 cachedPointsWS[x][y] = 
                     m_target.transform.TransformPoint(
-                        m_target.cachedPoints[x][y] + gridPos
+                        m_target.offsets[m_target.CoordToIndex(x, y)] + gridPos
                     );
             }
         }
@@ -129,33 +194,74 @@ public class FFD2DEditor : Editor
     void SetEditPoint()
     {
         CachePoints();
-        editPoint = cachedEditPoint =  cachedPointsWS[1][1];
+        if(_indexX != -1 && _indexY != -1)
+            editPoint = cachedEditPoint =  cachedPointsWS[_indexX][_indexY];
     }
     
 
     static Vector3 editPoint, cachedEditPoint;
+    const float buttonSize = 0.05f, pickSize = 0.06f;
 
     void Edit()
     {
         if(!_editing)
             return;
 
-        EditorGUI.BeginChangeCheck();
-        editPoint = 
-            Handles.PositionHandle(editPoint, m_target.transform.rotation);
-        if(EditorGUI.EndChangeCheck())
+        for (int x = 0; x < cells; x++)
         {
-            Vector2 offset = m_target.transform.InverseTransformVector((editPoint - cachedEditPoint) / (m_target.cells - 2));
+            for (int y = 0; y < cells; y++)
+            {
+                Handles.color = _selected[x][y] ? Color.yellow : Color.white;
+                if (Handles.Button(cachedPointsWS[x][y], Quaternion.identity, buttonSize, pickSize, Handles.RectangleHandleCap))
+                {
+                    _selected[x][y] = !_selected[x][y];
+                    _indexX = x;
+                    _indexY = y;
+                    SetEditPoint();
+                }
+                // Handles.CubeHandleCap(
+                //     m_target.CoordToIndex(x,y), cachedPointsWS[x][y], m_target.transform.rotation,
+                //     0.1f, EventType.Repaint
+                // );
+            }
+        }
+        if(_indexX != -1 && _indexY != -1)
+        {
+            EditorGUI.BeginChangeCheck();
+            editPoint = 
+                Handles.PositionHandle(editPoint, m_target.transform.rotation);
+            if(EditorGUI.EndChangeCheck())
+            {
+                Vector3 offset = m_target.transform.InverseTransformVector((editPoint - cachedEditPoint) / (cells - 2));
 
 
-            serializedObject.FindProperty("offset").vector2Value += offset;
-            serializedObject.ApplyModifiedProperties();
+                SerializedProperty offsets =  serializedObject.FindProperty("offsets");
+                
+                for (int x = 0; x < cells; x++)
+                {
+                    for (int y = 0; y < cells; y++)
+                    {
+                        if(_selected[x][y])
+                        {
+                            offsets.GetArrayElementAtIndex(m_target.CoordToIndex(x,y)).vector3Value += offset;
+                        }
+                    }
+                }
+                
+                serializedObject.ApplyModifiedProperties();
 
-            cachedEditPoint = editPoint;
+                cachedEditPoint = editPoint;
 
-            m_target.Set();
+                SetFFD();
+            }
         }
 
+    }
+
+    void SetFFD()
+    {
+        if(Application.isPlaying)
+            m_target.Set();
     }
 
     float GridToScalar(int v, float grid)

@@ -6,9 +6,9 @@ using System;
 //[ExecuteInEditMode]
 public class FFD2D : MonoBehaviour {
 
-	public Vector2 offset;
+
+	public Vector3[] offsets;
 	Bounds bounds = new Bounds();
-	public Vector3[][] cachedPoints;
 	public int cells = 3;
 	public int cellsM1 { get{ return cells - 1; } }
 
@@ -20,7 +20,7 @@ public class FFD2D : MonoBehaviour {
 		Set();
 	}
 
-	struct CachedTransform
+	class CachedTransform
 	{
 		public Vector3 position, scale;
 		Quaternion rotation;
@@ -51,23 +51,15 @@ public class FFD2D : MonoBehaviour {
 
 	void Init()
 	{
-		if(cachedPoints != null && cachedPoints.Length == cells)
+		if(_cachedTransform != null)
 			return;
 
-		cachedPoints = new Vector3[cells][];
-		for (int i = 0; i < cells; i++)
-		{
-			cachedPoints[i] = new Vector3[cells];
-		}
 		_cachedTransform = new CachedTransform();
 	}
 
 	public void CachePoints()
 	{
-		Init();
 		bounds.size = transform.localScale * 2;
-
-		cachedPoints[1][1] = offset;// * transform.localScale;
 		
 	}
 
@@ -136,12 +128,18 @@ public class FFD2D : MonoBehaviour {
 
 	Vector3 BilinearFilter(int x, int y, float u, float v)
 	{
+		int index = CoordToIndex(x, y);
 		Vector3 delta1 = Vector3.Lerp(
-			cachedPoints[x][y], cachedPoints[x + 1][y], u
+			offsets[index], offsets[index + cells], u
 		);
 		Vector3 delta2 = Vector3.Lerp(
-			cachedPoints[x][y+1], cachedPoints[x + 1][y + 1], u
+			offsets[index + 1], offsets[index + cells + 1], u
 		);
 		return Vector3.Lerp(delta1, delta2, v);
+	}
+
+		public int CoordToIndex(int x, int y)
+	{
+		return x * cells + y;
 	}
 }

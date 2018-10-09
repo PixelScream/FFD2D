@@ -34,13 +34,14 @@ public class FFD2DEditor : Editor
     }
     void CreateSelectionArray()
     {
-
+        _indexX = _indexY = -1;
         _selected = new bool[cells][];
         for (int i = 0; i < cells; i++)
         {
 
             _selected[i] = new bool[cells];
         }
+        SceneView.RepaintAll();
     }
 
     void RandomiseOffsets()
@@ -77,15 +78,33 @@ public class FFD2DEditor : Editor
         if(GUILayout.Button(_editing ? "Stop editing" : "Edit mode"))
             ToggleEditMode();
 
-        base.OnInspectorGUI();
+        if(_editing)
+        {
+            if(GUILayout.Button("Randomize"))
+                RandomiseOffsets();
 
-        if(GUILayout.Button("Randomize"))
-            RandomiseOffsets();
+            if(GUILayout.Button("Reset"))
+                ResetOffsets();
 
-        if(GUILayout.Button("Reset"))
-            ResetOffsets();
-        
+            if(GUILayout.Button("Clear Selection"))
+                CreateSelectionArray();
+        }
+        else
+        {
+            if(GUILayout.Button("Change Cells Count from :" + m_target.cells))
+                ChangeCellCount();
+        }
     }
+
+    void ChangeCellCount()
+    {
+        PropertiesWindow.Create(
+            "Change cell count! warning: may(will) mess up your grid",
+            new SerializedProperty[]{serializedObject.FindProperty("cells")},
+            CheckOffsetsSize
+        );
+    }
+
 
     Tool cachedTool;
     void ToggleEditMode()
@@ -200,7 +219,7 @@ public class FFD2DEditor : Editor
     
 
     static Vector3 editPoint, cachedEditPoint;
-    const float buttonSize = 0.05f, pickSize = 0.06f;
+    const float buttonSize = 0.05f, selectedButtonSize = 0.08f, pickSize = 0.1f;
 
     void Edit()
     {
@@ -212,12 +231,23 @@ public class FFD2DEditor : Editor
             for (int y = 0; y < cells; y++)
             {
                 Handles.color = _selected[x][y] ? Color.yellow : Color.white;
-                if (Handles.Button(cachedPointsWS[x][y], Quaternion.identity, buttonSize, pickSize, Handles.RectangleHandleCap))
+                if (Handles.Button(
+                    cachedPointsWS[x][y], Quaternion.identity, 
+                    _selected[x][y] ? selectedButtonSize : buttonSize, 
+                    pickSize, Handles.CubeHandleCap
+                ))
                 {
-                    _selected[x][y] = !_selected[x][y];
-                    _indexX = x;
-                    _indexY = y;
-                    SetEditPoint();
+                    if(Event.current.shift == true)
+                    {
+                        _selected[x][y] = false;
+                    }
+                    else
+                    {
+                        _selected[x][y] = true;
+                        _indexX = x;
+                        _indexY = y;
+                        SetEditPoint();
+                    }
                 }
                 // Handles.CubeHandleCap(
                 //     m_target.CoordToIndex(x,y), cachedPointsWS[x][y], m_target.transform.rotation,
